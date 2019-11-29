@@ -20,6 +20,7 @@ library(ggplot2)
 library(gganimate)
 library(stringr)
 library(gapminder)
+library(patchwork)
 
 ```
 
@@ -144,6 +145,55 @@ rm(list=(ls()[!grepl('gm_full',ls())]))
 ```
 
 
+
+```{r}
+p <- gm_full[,.(pop= sum(population, na.rm=TRUE)), year][,
+  ggplot(.SD, 
+         aes(as.integer(year), pop)) + 
+  geom_line() +
+  scale_y_continuous(labels=scales::label_number(scale=0.001))+
+  labs(
+    title = "Global Population up ~8x since 1800...",
+    x="Year",
+    y="Population",
+    caption= ""
+    )+
+  theme_bw()]
+
+p1 <- gm_full[,.(mean_inc= mean(income_cap, na.rm=TRUE)), year][,
+  ggplot(.SD, 
+         aes(as.integer(year), mean_inc)) + 
+  geom_line() +
+  scale_y_continuous(labels = scales::dollar)+
+  labs(
+    title = "While Income per cap up ~18x...",
+    x="Year",
+    y="Income",
+    caption= ""
+    )+
+  theme_bw()]
+
+p2 <- gm_full[,.(life= mean(life_expectancy, na.rm=TRUE)), year][,
+  ggplot(.SD, 
+         aes(as.integer(year), life)) + 
+  geom_line() +
+  scale_y_continuous()+
+  labs(
+    title = "And Life Expectancy has more than Doubled",
+    x="Year",
+    y="Income",
+    caption= "Source: Gapminder"
+    )+
+  theme_bw()]
+
+p + p1 + p2+  plot_layout(ncol=1)
+
+rm(list=ls(pattern="p"))
+
+```
+
+
+
 Plot by continent for 2017
 
 ```{r 'plot-2017'}
@@ -166,6 +216,9 @@ ggplot(gm_full[year=="2015"],
 
 gm_full
 ```
+
+
+
 
 
 Explore and drop "NA" rows
