@@ -15,12 +15,19 @@ Libraries for analysis
 
 ```{r 'libraries', message=FALSE, warning=FALSE}
 
-library(data.table)
-library(ggplot2)
-library(gganimate)
-library(stringr)
-library(gapminder)
-library(patchwork)
+packages <- 
+  c("data.table",
+    "ggplot2",
+    "gganimate",
+    "stringr",
+    "gapminder",
+    "patchwork",
+    "rlist",
+    "skimr")
+
+if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
 
 ```
 
@@ -42,24 +49,35 @@ Download population, income and life expenctancy data from gapminder website
 # Make directory
 if(!dir.exists("data")) dir.create("data")
 
+# Links to gapminder data
 # https://www.gapminder.org/data/
 #https://docs.google.com/spreadsheets/d/192pjt2vtwAQzi154LJ3Eb5RF8W9Fx3ZAiUZy-zXgyJo/pub#
+
+# Urls for health and wealth
 urls <- c("https://docs.google.com/spreadsheet/pub?key=phAwcNAVuyj1jiMAkmq1iMg&output=csv", 
           "https://docs.google.com/spreadsheet/pub?key=phAwcNAVuyj2tPLxKvvnNPA&output=csv")
-
-# names we give files
-names <- c("income_cap",
-           "life_expectancy",
-           "population")
 
 # function to download, rename and put in file
 variables <- lapply(urls, fread)
 
+# Download and filter population file
+download.file("http://gapm.io/dl_pop", 
+              destfile = "data/population.xlsx")
+population <- 
+  setDT(readxl::read_xlsx("data/population.xlsx", 
+                          sheet = 7, 
+                          col_names = FALSE))
+population <- 
+  population[,-c(1,3), with=TRUE]
 
-download.file("http://gapm.io/dl_pop", destfile = "data/population.xlsx")
-population <- setDT(readxl::read_xlsx("data/population.xlsx", sheet = 7, col_names = FALSE))
-population <- population[,-c(1,3), with=TRUE]
+# Merge all three variables into "variables
 variables <- rlist::list.append(variables, population)
+
+# names we give files
+names <- 
+  c("income_cap",
+    "life_expectancy",
+    "population")
 names(variables) <- names
 
 variables
@@ -130,7 +148,6 @@ continent_key
 # Add continent to data
 gm_full <- continent_key[gm]
 
-
 ```
 
 Summarize and clean up
@@ -138,7 +155,7 @@ Summarize and clean up
 ```{r 'summarize'}
 
 # Summarize
-skimr::skim(gm_full)
+skim(gm_full)
 
 # Clean up
 rm(list=(ls()[!grepl('gm_full',ls())]))
@@ -147,11 +164,14 @@ rm(list=(ls()[!grepl('gm_full',ls())]))
 
 
 ```{r}
-p <- gm_full[,.(pop= sum(population, na.rm=TRUE)), year][,
-  ggplot(.SD, 
+# Plot total population over time
+p <- 
+  gm_full[,.(pop = sum(population, na.rm=TRUE)), year][
+  ,ggplot(.SD, 
          aes(as.integer(year), pop)) + 
   geom_line() +
-  scale_y_continuous(labels=scales::label_number(scale=0.001))+
+  scale_y_continuous(
+    labels=scales::label_number(scale=0.001))+
   labs(
     title = "Global Population up ~8x since 1800...",
     x="Year",
@@ -160,7 +180,9 @@ p <- gm_full[,.(pop= sum(population, na.rm=TRUE)), year][,
     )+
   theme_bw()]
 
-p1 <- gm_full[,.(mean_inc= mean(income_cap, na.rm=TRUE)), year][,
+# Plot mean income over time
+p1 <- 
+  gm_full[,.(mean_inc= mean(income_cap, na.rm=TRUE)), year][,
   ggplot(.SD, 
          aes(as.integer(year), mean_inc)) + 
   geom_line() +
@@ -173,7 +195,9 @@ p1 <- gm_full[,.(mean_inc= mean(income_cap, na.rm=TRUE)), year][,
     )+
   theme_bw()]
 
-p2 <- gm_full[,.(life= mean(life_expectancy, na.rm=TRUE)), year][,
+# Plot mean life expectancy over time
+p2 <- 
+  gm_full[,.(life= mean(life_expectancy, na.rm=TRUE)), year][,
   ggplot(.SD, 
          aes(as.integer(year), life)) + 
   geom_line() +
@@ -186,6 +210,7 @@ p2 <- gm_full[,.(life= mean(life_expectancy, na.rm=TRUE)), year][,
     )+
   theme_bw()]
 
+# Put all three plots on one graph
 p + p1 + p2+  plot_layout(ncol=1)
 
 rm(list=ls(pattern="p"))
@@ -211,14 +236,11 @@ ggplot(gm_full[year=="2015"],
     title = 'Year',
     x = 'GDP per capita', 
     y = 'Life Expectancy') +
-  facet_wrap(~continent) +
-  theme_bw()
+  theme_bw() +
+  facet_wrap(~continent)
 
 gm_full
 ```
-
-
-
 
 
 Explore and drop "NA" rows
@@ -226,7 +248,8 @@ Explore and drop "NA" rows
 ```{r 'missing-rows'}
 
 # Find countries not mapped to continents
-missing <- unique(gm_full[is.na(continent)][,country])
+missing <- 
+  unique(gm_full[is.na(continent)][,country])
 gapminder[gapminder$country %in% missing,]
 missing
 
@@ -253,10 +276,12 @@ ggplot(gm_final,
   # Here comes the gganimate specific bits
   labs(title = 'Year: {frame_time}', 
        x = 'GDP per capita', 
-       y = 'life expectancy') +
+       y = 'Life Expectancy',
+       caption = "Source: Gapminder, GGanimate") +
   transition_time(as.integer(year)) +
-  ease_aes('linear') 
-  #+ shadow_wake(0.20, wrap = FALSE)
+  ease_aes('linear') +
+  #shadow_wake(0.20, wrap = FALSE) +
+  theme_bw()
 
   #anim_save("gapminder.gif")
 ```
