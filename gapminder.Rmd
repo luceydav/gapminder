@@ -23,11 +23,14 @@ packages <-
     "gapminder",
     "patchwork",
     "rlist",
-    "skimr")
+    "skimr",
+    "av")
 
 if (length(setdiff(packages,rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))  
 }
+
+invisible(lapply(packages, library, character.only = TRUE))
 
 ```
 
@@ -263,7 +266,7 @@ Final plot with animation like Hans Rosling
 ```{r 'animation'}
 # https://gganimate.com
 
-ggplot(gm_final, 
+p <- ggplot(gm_final, 
        aes(income_cap, 
            life_expectancy, 
            size = population, 
@@ -283,6 +286,8 @@ ggplot(gm_final,
   #shadow_wake(0.20, wrap = FALSE) +
   theme_bw()
 
-  #anim_save("gapminder.gif")
+b <- animate(p, duration = 20, fps = 20, renderer = av_renderer())
+anim_save("gapminder.mp4", b)
+
 ```
 
